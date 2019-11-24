@@ -57,6 +57,8 @@ int main()
 
     free(X);
     free(Y);
+    free(knnres.ndist);
+    free(knnres.nidx);
 
     return 0;
 }

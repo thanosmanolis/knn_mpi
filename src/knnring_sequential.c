@@ -35,6 +35,10 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
                 sum += X[n*z + j] * X[n*z + j] + Y[m*z + i] * Y[m*z + i];
 
             dist[n*i + j] = sqrt(sum);
+
+            //! If dist = NaN, do it 0
+            if(dist[n*i + j] != dist[n*i + j])
+                dist[n*i + j] = 0.0;
         }
 
     //! Calculate k-nearest neighbors
