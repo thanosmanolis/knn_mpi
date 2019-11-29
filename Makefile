@@ -12,8 +12,12 @@
 # define the C/C++ compiler to use,default here is gcc-7
 CC = gcc
 
+# define the MPI compiler to use, default here is mpicc
+MPICC = mpicc
+MPIRUN = mpirun -np 4
+
 # all the executables
-EXECS = test_sequential
+EXECS = test_sequential test_synchronous
 
 # define flags
 CFLAGS = -O3
@@ -32,6 +36,12 @@ test_sequential:
 	cd knnring; cp lib/*.a inc/*.h ../; cd ..
 	$(CC) tester.c knnring_sequential.a -o $@ $(CFLAGS) $(LDFLAGS)
 	./test_sequential
+
+test_synchronous:
+	cd knnring; make lib; cd ..
+	cd knnring; cp lib/*.a inc/*.h ../; cd ..
+	$(MPICC) tester_mpi.c knnring_synchronous.a -o $@ $(CFLAGS) $(LDFLAGS)
+	$(MPIRUN) ./test_synchronous
 
 clean:
 	$(RM) *.h *.a $(EXECS)
