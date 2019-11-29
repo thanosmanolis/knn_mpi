@@ -26,20 +26,37 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
     //! Implementation of -2*X*Y with blas library
     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasTrans, n, m, d, -2, X, n, Y, m, 0, dist, n);
 
-    //! dist += X^2 + Y^2
+    //! powX = X^2
+    double *powX = malloc(n * sizeof(double));
+    for(int i=0; i<n; i++)
+    {
+        powX[i] = 0.0;
+        for(int z=0; z<d; z++)
+            powX[i] += X[n*z + i] * X[n*z + i];
+    }
+
+    //! powY = Y^2
+    double *powY = malloc(m * sizeof(double));
     for(int i=0; i<m; i++)
-        for(int j=0; j<n; j++)
+    {
+        powY[i] = 0.0;
+        for(int z=0; z<d; z++)
+            powY[i] += Y[m*z + i] * Y[m*z + i];
+    }
+
+    //! dist += X^2 + Y^2
+    for(int i=0; i<n; i++)
+    {
+        for(int j=0; j<m; j++)
         {
-            double sum = dist[n*i + j];
-            for(int z=0; z<d; z++)
-                sum += X[n*z + j] * X[n*z + j] + Y[m*z + i] * Y[m*z + i];
+            dist[n*j + i] += powX[i] + powY[j];
+            dist[n*j + i] = sqrt(dist[n*j + i]);
 
-            dist[n*i + j] = sqrt(sum);
-
-            //! If dist = NaN, do it 0
-            if(dist[n*i + j] != dist[n*i + j])
-                dist[n*i + j] = 0.0;
+            //! If dist = NaN, or dist < 0.000001, do it 0
+            if( (dist[n*j + i] != dist[n*j + i]) || (dist[n*j + i] < 0.000001) )
+                dist[n*j + i] = 0.0;
         }
+    }
 
     //! Calculate k-nearest neighbors
     for(int i=0; i<m; i++)

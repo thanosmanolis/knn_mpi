@@ -21,7 +21,7 @@ EXECS = test_sequential
 
 # define flags
 CFLAGS = -O3
-LDFLAGS = -lm -lblas
+LDFLAGS = -lm -lopenblas
 
 # define command to remove files
 RM = rm -rf
@@ -36,7 +36,7 @@ test_sequential:
 	./test_sequential
 
 lib:
-	cd src; $(CC) -c knnring_sequential.c $(CFLAGS) $(LDFLAGS); cd ..
+	cd src; $(CC) -c knnring_sequential.c $(CFLAGS); cd ..
 	cd src; ar rcs ../lib/knnring_sequential.a knnring_sequential.o; cd ..
 
 clean:

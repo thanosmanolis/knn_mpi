@@ -18,9 +18,6 @@ double p_time;
 
 int main()
 {
-    double cpu_time_used;
-    clock_t start, end;
-
     int n=897;  // X
     int m=762;  // Y
     int d=7;    // dimensions
@@ -36,8 +33,8 @@ int main()
         Y[i]= (double)rand()/(double)RAND_MAX;
 
     //! Set this timestamp as start
-    gettimeofday (&startwtime, NULL);
     st_time = times(&st_cpu);
+    gettimeofday (&startwtime, NULL);
 
     knnresult knnres = kNN( X, Y, n, m, d, k );
 
@@ -53,7 +50,6 @@ int main()
            (long)(en_time - st_time),
            (long)(en_cpu.tms_utime - st_cpu.tms_utime),
            (long)(en_cpu.tms_stime - st_cpu.tms_stime));
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
     free(X);
     free(Y);
