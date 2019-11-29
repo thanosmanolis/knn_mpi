@@ -13,6 +13,13 @@
 #include <sys/time.h>
 #include <sys/times.h>
 
+struct timeval startwtime, endwtime;
+static clock_t st_time;
+static clock_t en_time;
+static struct tms st_cpu;
+static struct tms en_cpu;
+double p_time;
+
 /*
 *************************************************
 *    @file   knn.h                              *
