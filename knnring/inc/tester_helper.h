@@ -4,15 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <float.h>
 #include "knnring.h"
-
-//! Clearing the shell using escape sequences
-#define clear() printf("\033[H\033[J")
-#define RED "\033[0;31m"
-#define GREEN "\033[0;32m"
-#define GREEN_BOLD "\033[1;32m"
-#define YELLOW "\033[0;33m"
-#define RESET_COLOR "\033[0m"
 
 // ============================== ACCESS MACROS
 
@@ -116,7 +109,7 @@ int validateResult( knnresult knnres,
         double distxy = distColMajor( corpus, query, knnresnidx_cm(j,l), j, d, n, m );
 
         /* make sure reported distance is correct */
-        if ( fabs( knnresndist_cm(j,l) - distxy ) / distxy > 1e-6 ) return 0;
+        if ( fabs( knnresndist_cm(j,l) - distxy ) / (distxy + DBL_EPSILON) > 1e-6 ) return 0;
 
         /* distances should be non-decreasing */
         if ( knnresndist_cm(j,l) < maxDist ) return 0;
@@ -133,7 +126,7 @@ int validateResult( knnresult knnres,
         double distxy = distRowMajor( corpus, query, knnresnidx_rm(j,l), j, d, n, m );
 
         /* make sure reported distance is correct */
-        if ( fabs( knnresndist_rm(j,l) - distxy ) / distxy > 1e-6 ) return 0;
+        if ( fabs( knnresndist_rm(j,l) - distxy ) / (distxy + DBL_EPSILON) > 1e-6 ) return 0;
 
         /* distances should be non-decreasing */
         if ( knnresndist_rm(j,l) < maxDist ) return 0;

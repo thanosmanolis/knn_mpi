@@ -49,73 +49,78 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
 
     int tag = 1;
 
-    for(int ip=0; ip<p-1; ip++)
+    for(int ip=0; ip<p; ip++)
     {
-        if(id%2 == 0)
+        if(ip > 0)
         {
-            MPI_Send(X, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
-            MPI_Recv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &Stat);
-        }else
-        {
-            double *X_cp = (double *)malloc(n*d * sizeof(double));
+            knnresult knn_temp;
+            knn_temp = kNN(X, Y, n, n, d, k);
 
-            for(int i=0; i<n*d; i++)
-                X_cp[i] = X[i];
+            mul--;
+            if(mul < 0)
+                mul = p-1;
 
-            MPI_Recv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &Stat);
+            for(int i=0; i<n; i++)
+                for(int z=0; z<k; z++)
+                    knn_temp.nidx[n*z + i] = knn_temp.nidx[n*z + i] + mul*n;
 
-            MPI_Send(X_cp, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
-        }
-
-        knnresult knn_temp;
-        knn_temp = kNN(X, Y, n, n, d, k);
-
-        mul--;
-        if(mul < 0)
-            mul = p-1;
-
-        for(int i=0; i<n; i++)
-            for(int z=0; z<k; z++)
-                knn_temp.nidx[n*z + i] = knn_temp.nidx[n*z + i] + mul*n;
-
-        for(int i=0; i<n; i++)
-        {
-            int z1 = 0, z2 = 0, z3 = 0;
-            double *dist = (double *)malloc(k * sizeof(double));
-            int    *idx  =    (int *)malloc(k * sizeof(int));
-
-            // Traverse both arrays
-            while (z1<k && z2<k && z3<k)
+            for(int i=0; i<n; i++)
             {
-                if (knnres.ndist[n*z1 + i] < knn_temp.ndist[n*z2 + i])
+                int z1 = 0, z2 = 0, z3 = 0;
+                double *dist = (double *)malloc(k * sizeof(double));
+                int    *idx  =    (int *)malloc(k * sizeof(int));
+
+                // Traverse both arrays
+                while (z1<k && z2<k && z3<k)
+                {
+                    if (knnres.ndist[n*z1 + i] < knn_temp.ndist[n*z2 + i])
+                    {
+                        dist[z3] = knnres.ndist[n*(z1) + i];
+                        idx[z3++] = knnres.nidx[n*(z1++) + i];
+                    }else
+                    {
+                        dist[z3] = knn_temp.ndist[n*(z2) + i];
+                        idx[z3++] = knn_temp.nidx[n*(z2++) + i];
+                    }
+                }
+
+                // Store remaining elements of first array
+                while (z1<k && z3<k)
                 {
                     dist[z3] = knnres.ndist[n*(z1) + i];
                     idx[z3++] = knnres.nidx[n*(z1++) + i];
-                }else
+                }
+
+                // Store remaining elements of second array
+                while (z2<k && z3<k)
                 {
                     dist[z3] = knn_temp.ndist[n*(z2) + i];
                     idx[z3++] = knn_temp.nidx[n*(z2++) + i];
                 }
-            }
 
-            // Store remaining elements of first array
-            while (z1 < k && z3<k)
-            {
-                dist[z3] = knnres.ndist[n*(z1) + i];
-                idx[z3++] = knnres.nidx[n*(z1++) + i];
+                for(int z=0; z<k; z++)
+                {
+                    knnres.ndist[n*z + i] = dist[z];
+                    knnres.nidx[n*z + i] = idx[z];
+                }
             }
+        }
 
-            // Store remaining elements of second array
-            while (z2 < k && z3<k)
+        if(ip < p-1)
+        {
+            if(id%2 == 0)
             {
-                dist[z3] = knn_temp.ndist[n*(z2) + i];
-                idx[z3++] = knn_temp.nidx[n*(z2++) + i];
-            }
+                MPI_Send(X, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
+                MPI_Recv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &Stat);
+            }else
+            {
+                double *X_cp = (double *)malloc(n*d * sizeof(double));
 
-            for(int z=0; z<k; z++)
-            {
-                knnres.ndist[n*z + i] = dist[z];
-                knnres.nidx[n*z + i] = idx[z];
+                for(int i=0; i<n*d; i++)
+                    X_cp[i] = X[i];
+
+                MPI_Recv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &Stat);
+                MPI_Send(X_cp, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
             }
         }
     }
@@ -166,11 +171,12 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
         for(int j=0; j<m; j++)
         {
             dist[n*j + i] += powX[i] + powY[j];
-            dist[n*j + i] = sqrt(dist[n*j + i]);
 
-            //! If dist = NaN, or dist < 0.000001, do it 0
-            if( (dist[n*j + i] != dist[n*j + i]) || (dist[n*j + i] < 0.000001) )
+            //! If dist < 10^(-8), do it 0
+            if( dist[n*j + i] < 1e-8 )
                 dist[n*j + i] = 0.0;
+
+            dist[n*j + i] = sqrt(dist[n*j + i]);
         }
     }
 

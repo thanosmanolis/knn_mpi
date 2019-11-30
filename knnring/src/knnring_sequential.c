@@ -50,11 +50,12 @@ knnresult kNN(double * X, double * Y, int n, int m, int d, int k)
         for(int j=0; j<m; j++)
         {
             dist[n*j + i] += powX[i] + powY[j];
-            dist[n*j + i] = sqrt(dist[n*j + i]);
 
-            //! If dist = NaN, or dist < 0.000001, do it 0
-            if( (dist[n*j + i] != dist[n*j + i]) || (dist[n*j + i] < 0.000001) )
+            //! If dist < 10^(-8), do it 0
+            if( dist[n*j + i] < 1e-8 )
                 dist[n*j + i] = 0.0;
+
+            dist[n*j + i] = sqrt(dist[n*j + i]);
         }
     }
 

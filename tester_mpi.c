@@ -11,10 +11,17 @@
 #include <time.h>
 #include <math.h>
 #include <assert.h>
-#include "knnring.h"
 #include "mpi.h"
 
+#include "knnring.h"
 #include "tester_helper.h"
+
+struct timeval startwtime, endwtime, start_excltime, end_excltime;
+static clock_t st_time;
+static clock_t en_time;
+static struct tms st_cpu;
+static struct tms en_cpu;
+double p_time, excl_time;
 
 /*
 **********************************
@@ -53,12 +60,23 @@ int testMPI( int const n, int const d, int const k, int const ap )
 
     if (id == 0)
     {//! MASTER
+
+        //! ======================= START POINT =======================
+        gettimeofday (&start_excltime, NULL);
+
         //! Initialize data to begin with
         double const * const corpusAll = ralloc( n*d*p );
+
+        //! ======================= END POINT =======================
+        gettimeofday (&end_excltime, NULL);
+        excl_time += (double)((end_excltime.tv_usec - start_excltime.tv_usec)/1.0e6
+                  + end_excltime.tv_sec - start_excltime.tv_sec);
 
         //! Break to subprocesses
         for (int ip = 0; ip < p; ip++)
         {
+            //! ======================= START POINT =======================
+            gettimeofday (&start_excltime, NULL);
 
             for (int i=0; i<n; i++)
                 for (int j=0; j<d; j++)
@@ -66,6 +84,12 @@ int testMPI( int const n, int const d, int const k, int const ap )
                         corpus_cm(i,j) = corpusAll_cm(i+ip*n,j);
                     else
                         corpus_rm(i,j) = corpusAll_rm(i+ip*n,j);
+
+            //! ======================= END POINT =======================
+            gettimeofday (&end_excltime, NULL);
+            excl_time += (double)((end_excltime.tv_usec - start_excltime.tv_usec)/1.0e6
+                      + end_excltime.tv_sec - start_excltime.tv_sec);
+
 
             //! Last chunk is mine
             if (ip == p-1)
@@ -128,8 +152,17 @@ int testMPI( int const n, int const d, int const k, int const ap )
                 }
         }
 
+        //! ======================= START POINT =======================
+        gettimeofday (&start_excltime, NULL);
+
         // ---------- Validate results
         isValid = validateResult( knnresall, corpusAll, corpusAll, n*p, n*p, d, k, ap );
+
+        //! ======================= END POINT =======================
+        gettimeofday (&end_excltime, NULL);
+        excl_time += (double)((end_excltime.tv_usec - start_excltime.tv_usec)/1.0e6
+                  + end_excltime.tv_sec - start_excltime.tv_sec);
+
     }else
     {//! SLAVE
         //! Get data from MASTER
@@ -158,23 +191,60 @@ int testMPI( int const n, int const d, int const k, int const ap )
 
 int main(int argc, char *argv[])
 {
+    p_time = 0;
+    excl_time = 0;
+
+    int p, id;  // processes, PID
+    int n = 0;  // # corpus elements per process
+    int d;      // # dimensions
+    int k;      // # neighbors
+
     MPI_Init(&argc, &argv);       // initialize MPI
 
-    int id;                       // PID
-    int n=50;                   // # corpus elements per process
-    int d=10;                     // # dimensions
-    int k=13;                     // # neighbors
-
     MPI_Comm_rank(MPI_COMM_WORLD, &id); // Task ID
+    MPI_Comm_size(MPI_COMM_WORLD, &p); // # tasks
 
-    // ============================== RUN EXPERIMENTS
-    int isValidC = testMPI( n, d, k, COLMAJOR );
-    // int isValidR = testMPI( n, d, k, ROWMAJOR );
+    //! By default, 100 experiments are done. You can change the
+    //! nc, dc, kc values and also the n, d, k increment values.
+    for(int nc=0; nc<5; nc++)
+    {
+        n += 2000/p;
+        d = 0;
 
-    // ============================== ONLY MASTER OUTPUTS
-    //! MASTER gets result
-    if (id == 0)
-        printf("Tester validation: %s\n", STR_CORRECT_WRONG[isValidC]);
+        for(int dc=0; dc<5; dc++)
+        {
+            d += 20;
+            k = 0;
+
+            for(int kc=0; kc<4; kc++)
+            {
+                k += 20;
+                excl_time = 0;
+
+                //! ======================= START POINT =======================
+                gettimeofday (&startwtime, NULL);
+
+                // ============================== RUN EXPERIMENTS
+                int isValidC = testMPI( n, d, k, COLMAJOR );
+                // int isValidR = testMPI( n, d, k, ROWMAJOR );
+
+                // ============================== ONLY MASTER OUTPUTS
+                //! MASTER gets result
+                if (id == 0)
+                {
+                    printf("Tester validation: %s\n", STR_CORRECT_WRONG[isValidC]);
+
+                    //! ======================= END POINT =======================
+                    gettimeofday (&endwtime, NULL);
+                    p_time = ( (double)((endwtime.tv_usec - startwtime.tv_usec)/1.0e6
+                              + endwtime.tv_sec - startwtime.tv_sec) ) - excl_time;
+
+                    printf(YELLOW "===== n*p: %d, d: %d, k: %d =====\n" RESET_COLOR, n*p, d, k);
+                    printf(RED "%f sec\n" RESET_COLOR, p_time);
+                }
+            }
+        }
+    }
 
     //! Clean up
     MPI_Finalize();

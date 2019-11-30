@@ -13,12 +13,13 @@
 #include <sys/time.h>
 #include <sys/times.h>
 
-struct timeval startwtime, endwtime;
-static clock_t st_time;
-static clock_t en_time;
-static struct tms st_cpu;
-static struct tms en_cpu;
-double p_time;
+//! Clearing the shell using escape sequences
+#define clear() printf("\033[H\033[J")
+#define RED "\033[0;31m"
+#define GREEN "\033[0;32m"
+#define GREEN_BOLD "\033[1;32m"
+#define YELLOW "\033[0;33m"
+#define RESET_COLOR "\033[0m"
 
 /*
 *************************************************
