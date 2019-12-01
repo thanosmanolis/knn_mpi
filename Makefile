@@ -17,7 +17,7 @@ MPICC = mpicc
 MPIRUN = mpirun -np 4
 
 # all the executables
-EXECS = test_sequential test_synchronous
+EXECS = test_sequential test_synchronous test_asynchronous
 
 # define flags
 CFLAGS = -O3
@@ -35,13 +35,16 @@ test_sequential:
 	cd knnring; make lib; cd ..
 	cd knnring; cp lib/*.a inc/*.h ../; cd ..
 	$(CC) tester.c knnring_sequential.a -o $@ $(CFLAGS) $(LDFLAGS)
-	./test_sequential
 
 test_synchronous:
 	cd knnring; make lib; cd ..
 	cd knnring; cp lib/*.a inc/*.h ../; cd ..
 	$(MPICC) tester_mpi.c knnring_synchronous.a -o $@ $(CFLAGS) $(LDFLAGS)
-	$(MPIRUN) ./test_synchronous
+
+test_asynchronous:
+	cd knnring; make lib; cd ..
+	cd knnring; cp lib/*.a inc/*.h ../; cd ..
+	$(MPICC) tester_mpi.c knnring_asynchronous.a -o $@ $(CFLAGS) $(LDFLAGS)
 
 clean:
 	$(RM) *.h *.a $(EXECS)

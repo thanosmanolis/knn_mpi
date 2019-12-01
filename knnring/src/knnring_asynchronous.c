@@ -9,7 +9,8 @@
 
 typedef struct knnresult knnresult;
 
-MPI_Status Stat;
+MPI_Status stat;
+MPI_Request	send_request,recv_request;
 
 knnresult distrAllkNN(double * X, int n, int d, int k)
 {
@@ -85,14 +86,14 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
                 }
 
                 // Store remaining elements of first array
-                while (z1<k && z3<k)
+                while (z1 < k && z3<k)
                 {
                     dist[z3] = knnres.ndist[n*(z1) + i];
                     idx[z3++] = knnres.nidx[n*(z1++) + i];
                 }
 
                 // Store remaining elements of second array
-                while (z2<k && z3<k)
+                while (z2 < k && z3<k)
                 {
                     dist[z3] = knn_temp.ndist[n*(z2) + i];
                     idx[z3++] = knn_temp.nidx[n*(z2++) + i];
@@ -108,22 +109,18 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
 
         if(ip < p-1)
         {
-            if(id%2 == 0)
-            {
-                MPI_Send(X, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
-                MPI_Recv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &Stat);
-            }else
-            {
-                double *X_cp = (double *)malloc(n*d * sizeof(double));
+            double *X_cp = (double *)malloc(n*d * sizeof(double));
 
-                for(int i=0; i<n*d; i++)
-                    X_cp[i] = X[i];
+            for(int i=0; i<n*d; i++)
+                X_cp[i] = X[i];
 
-                MPI_Recv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &Stat);
-                MPI_Send(X_cp, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD);
+            MPI_Isend(X_cp, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &send_request);
+            MPI_Irecv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &recv_request);
 
-                free(X_cp);
-            }
+            MPI_Wait(&send_request,&stat);
+            MPI_Wait(&recv_request,&stat);
+
+            free(X_cp);
         }
     }
 
