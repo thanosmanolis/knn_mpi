@@ -9,11 +9,10 @@
 
 typedef struct knnresult knnresult;
 
-MPI_Status stat;
-MPI_Request	send_request,recv_request;
-
 knnresult distrAllkNN(double * X, int n, int d, int k)
 {
+    MPI_Status stat;
+    MPI_Request	send_request,recv_request;
     int p, id;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &id); // Task ID
@@ -21,10 +20,12 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
 
     knnresult knnres;
 
-    double *Y = (double *)malloc(n*d * sizeof(double));
+    double *Y    = (double *)malloc(n*d * sizeof(double));
+    double *X_cp = (double *)malloc(n*d * sizeof(double));
+    double *dist = (double *)malloc(k * sizeof(double));
+    int    *idx  =    (int *)malloc(k * sizeof(int));
 
-    for(int i=0; i<n*d; i++)
-        Y[i] = X[i];
+    memcpy(Y, X, n*d*sizeof(double));
 
     knnres = kNN(X, Y, n, n, d, k);
 
@@ -68,8 +69,6 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
             for(int i=0; i<n; i++)
             {
                 int z1 = 0, z2 = 0, z3 = 0;
-                double *dist = (double *)malloc(k * sizeof(double));
-                int    *idx  =    (int *)malloc(k * sizeof(int));
 
                 // Traverse both arrays
                 while (z1<k && z2<k && z3<k)
@@ -99,30 +98,28 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
                     idx[z3++] = knn_temp.nidx[n*(z2++) + i];
                 }
 
-                for(int z=0; z<k; z++)
-                {
-                    knnres.ndist[n*z + i] = dist[z];
-                    knnres.nidx[n*z + i] = idx[z];
-                }
+                memcpy(knnres.ndist, dist, k*sizeof(double));
+                memcpy(knnres.nidx, idx, k*sizeof(int));
             }
         }
 
         if(ip < p-1)
         {
-            double *X_cp = (double *)malloc(n*d * sizeof(double));
-
-            for(int i=0; i<n*d; i++)
-                X_cp[i] = X[i];
+            memcpy(X_cp, X, n*d*sizeof(double));
 
             MPI_Isend(X_cp, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &send_request);
             MPI_Irecv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &recv_request);
 
             MPI_Wait(&send_request,&stat);
             MPI_Wait(&recv_request,&stat);
-
-            free(X_cp);
         }
     }
+
+    //! Free alocated memory
+    free(Y);
+    free(X_cp);
+    free(dist);
+    free(idx);
 
     return knnres;
 }
