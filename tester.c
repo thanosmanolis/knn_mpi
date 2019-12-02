@@ -63,6 +63,18 @@ int main(int argc, char *argv[])
     printf(YELLOW "===== n: %d, d: %d, k: %d =====\n" RESET_COLOR, n, d, k);
     printf(RED "Real Time: %f\n", p_time);
 
+    //! Uncoment next line to write output in a text file
+
+    // FILE *f = fopen("seq.txt", "a");
+    // if (f == NULL)
+    // {
+    //     printf("Error opening file!\n");
+    //     exit(1);
+    // }
+    //
+    // fprintf(f, "%d, %d, %d, %f\n", n, d, k, p_time);
+    // fclose(f);
+
     free( corpus );
     free( query );
 

@@ -211,11 +211,11 @@ int main(int argc, char *argv[])
     //! ======================= START POINT =======================
     startwtime = MPI_Wtime();
 
-    // ============================== RUN EXPERIMENTS
+    //! ============================== RUN EXPERIMENTS
     int isValidC = testMPI( n, d, k, COLMAJOR );
     // int isValidR = testMPI( n, d, k, ROWMAJOR );
 
-    //! ============================ ONLY MASTER OUTPUTS
+    //! ============================== ONLY MASTER OUTPUTS
     if (id == 0)
     {
         //! ======================= END POINT =======================
@@ -226,6 +226,18 @@ int main(int argc, char *argv[])
 
         printf(YELLOW "===== n*p: %d, d: %d, k: %d =====\n" RESET_COLOR, n*p, d, k);
         printf(RED "%f sec\n" RESET_COLOR, p_time);
+
+        //! Uncomment next lines to write output in a text file
+
+        // FILE *f = fopen("mpi.txt", "a");
+        // if (f == NULL)
+        // {
+        //     printf("Error opening file!\n");
+        //     exit(1);
+        // }
+        //
+        // fprintf(f, "%d, %d, %d, %f\n", n*p, d, k, p_time);
+        // fclose(f);
     }
 
     //! Clean up
