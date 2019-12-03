@@ -185,9 +185,13 @@ int main(int argc, char *argv[])
 {
     int p, id;  // processes, PID
     int n, d, k;
+    char *file_name = "mpi.txt";
 
     if(argc > 1)
     {
+        if(argc > 4)
+            file_name = argv[4];
+
         n = atoi(argv[1]);  // # corpus elements per process
         d = atoi(argv[2]);  // # dimensions
         k = atoi(argv[3]);  // # neighbors
@@ -205,8 +209,6 @@ int main(int argc, char *argv[])
 
     MPI_Comm_rank(MPI_COMM_WORLD, &id); // Task ID
     MPI_Comm_size(MPI_COMM_WORLD, &p); // # tasks
-
-    excl_time = 0;
 
     //! ======================= START POINT =======================
     startwtime = MPI_Wtime();
@@ -227,16 +229,15 @@ int main(int argc, char *argv[])
         printf(YELLOW "===== n*p: %d, d: %d, k: %d =====\n" RESET_COLOR, n*p, d, k);
         printf(RED "%f sec\n" RESET_COLOR, p_time);
 
-        //! Uncomment next lines to write output in a text file
-
-        // FILE *f = fopen("mpi.txt", "a");
+        //! Uncomment the next lines to write output in a text file. By default the
+        //! file's name will be "mpi.txt" unless you put a fourth argument
+        // FILE *f = fopen(file_name, "a");
         // if (f == NULL)
         // {
         //     printf("Error opening file!\n");
         //     exit(1);
         // }
-        //
-        // fprintf(f, "%d, %d, %d, %f\n", n*p, d, k, p_time);
+        // fprintf(f, "%d, %d, %d, %d, %f\n", p, n*p, d, k, p_time);
         // fclose(f);
     }
 
