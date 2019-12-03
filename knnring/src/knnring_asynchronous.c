@@ -98,8 +98,11 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
                     idx[z3++] = knn_temp.nidx[n*(z2++) + i];
                 }
 
-                memcpy(knnres.ndist, dist, k*sizeof(double));
-                memcpy(knnres.nidx, idx, k*sizeof(int));
+                for(int z=0; z<k; z++)
+                {
+                    knnres.ndist[n*z + i] = dist[z];
+                    knnres.nidx[n*z + i] = idx[z];
+                }
             }
         }
 
