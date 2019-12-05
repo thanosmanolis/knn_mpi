@@ -1,7 +1,7 @@
 /*
-***********************************************
-*    k-nearest neighbors (k-NN) Sequential    *
-***********************************************
+************************************************************
+*    k-nearest neighbors (k-NN) Parallel (Asynchronous)    *
+************************************************************
 */
 #include "../inc/knnring.h"
 #include <mpi.h>
@@ -11,8 +11,8 @@ typedef struct knnresult knnresult;
 
 knnresult distrAllkNN(double * X, int n, int d, int k)
 {
-    MPI_Status stat;
-    MPI_Request	send_request,recv_request;
+    MPI_Status send_stat, recv_stat;
+    MPI_Request	send_request, recv_request;
     int p, id;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &id); // Task ID
@@ -21,14 +21,35 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
     knnresult knnres;
 
     double *Y    = (double *)malloc(n*d * sizeof(double));
-    double *X_cp = (double *)malloc(n*d * sizeof(double));
+    double *X_send = (double *)malloc(n*d * sizeof(double));
+    double *X_recv = (double *)malloc(n*d * sizeof(double));
     double *dist = (double *)malloc(k * sizeof(double));
     int    *idx  =    (int *)malloc(k * sizeof(int));
 
-    memcpy(Y, X, n*d*sizeof(double));
+    //! Declare destination and receive id for each process
+    int rcv, dst;
+    int tag = 1;
 
+    if(id == 0)
+        rcv = p-1;
+    else
+        rcv = id-1;
+
+    if(id == p-1)
+        dst = 0;
+    else
+        dst = id+1;
+
+    //! Each process first sends and receives the blocks
+    memcpy(X_send, X, n*d*sizeof(double));
+    MPI_Isend(X_send, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &send_request);
+    MPI_Irecv(X_recv, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &recv_request);
+
+    //! In the meantime, the first calculation of each process is done
+    memcpy(Y, X, n*d*sizeof(double));
     knnres = kNN(X, Y, n, n, d, k);
 
+    //! Transformation of the indices according to each process
     int mul = id + p - 1;
     if(mul >= p)
         mul -= p;
@@ -37,90 +58,80 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
         for(int z=0; z<k; z++)
             knnres.nidx[n*z + i] = knnres.nidx[n*z + i] + mul*n;
 
-    int rcv;
-    if(id == 0)
-        rcv = p-1;
-    else
-        rcv = id-1;
-
-    int dst;
-    if(id == p-1)
-        dst = 0;
-    else
-        dst = id+1;
-
-    int tag = 1;
-
-    for(int ip=0; ip<p; ip++)
+    //! From now on each process will update its kNN result p-1 times
+    //! (p = processes), but will send and receive only p-2 times,
+    //! because the first send-receive has already started
+    for(int ip=0; ip<p-1; ip++)
     {
-        if(ip > 0)
+        // Wait for MPI requests to complete
+        MPI_Wait(&send_request, &send_stat);
+        MPI_Wait(&recv_request, &recv_stat);
+
+        memcpy(X, X_recv, n*d*sizeof(double));
+
+        //! If it's the last iteration, do not send or receive
+        if(ip < p-2)
         {
-            knnresult knn_temp;
-            knn_temp = kNN(X, Y, n, n, d, k);
+            memcpy(X_send, X_recv, n*d*sizeof(double));
+            MPI_Isend(X_send, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &send_request);
+            MPI_Irecv(X_recv, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &recv_request);
+        }
 
-            mul--;
-            if(mul < 0)
-                mul = p-1;
+        knnresult knn_temp;
+        knn_temp = kNN(X, Y, n, n, d, k);
 
-            for(int i=0; i<n; i++)
-                for(int z=0; z<k; z++)
-                    knn_temp.nidx[n*z + i] = knn_temp.nidx[n*z + i] + mul*n;
+        mul--;
+        if(mul < 0)
+            mul = p-1;
 
-            for(int i=0; i<n; i++)
+        for(int i=0; i<n; i++)
+            for(int z=0; z<k; z++)
+                knn_temp.nidx[n*z + i] = knn_temp.nidx[n*z + i] + mul*n;
+
+        for(int i=0; i<n; i++)
+        {
+            int z1 = 0, z2 = 0, z3 = 0;
+
+            //! Traverse both arrays
+            while (z1<k && z2<k && z3<k)
             {
-                int z1 = 0, z2 = 0, z3 = 0;
-
-                // Traverse both arrays
-                while (z1<k && z2<k && z3<k)
-                {
-                    if (knnres.ndist[n*z1 + i] < knn_temp.ndist[n*z2 + i])
-                    {
-                        dist[z3] = knnres.ndist[n*(z1) + i];
-                        idx[z3++] = knnres.nidx[n*(z1++) + i];
-                    }else
-                    {
-                        dist[z3] = knn_temp.ndist[n*(z2) + i];
-                        idx[z3++] = knn_temp.nidx[n*(z2++) + i];
-                    }
-                }
-
-                // Store remaining elements of first array
-                while (z1 < k && z3<k)
+                if (knnres.ndist[n*z1 + i] < knn_temp.ndist[n*z2 + i])
                 {
                     dist[z3] = knnres.ndist[n*(z1) + i];
                     idx[z3++] = knnres.nidx[n*(z1++) + i];
-                }
-
-                // Store remaining elements of second array
-                while (z2 < k && z3<k)
+                }else
                 {
                     dist[z3] = knn_temp.ndist[n*(z2) + i];
                     idx[z3++] = knn_temp.nidx[n*(z2++) + i];
                 }
-
-                for(int z=0; z<k; z++)
-                {
-                    knnres.ndist[n*z + i] = dist[z];
-                    knnres.nidx[n*z + i] = idx[z];
-                }
             }
-        }
 
-        if(ip < p-1)
-        {
-            memcpy(X_cp, X, n*d*sizeof(double));
+            //! Store remaining elements of first array
+            while (z1 < k && z3<k)
+            {
+                dist[z3] = knnres.ndist[n*(z1) + i];
+                idx[z3++] = knnres.nidx[n*(z1++) + i];
+            }
 
-            MPI_Isend(X_cp, n*d, MPI_DOUBLE, dst, tag, MPI_COMM_WORLD, &send_request);
-            MPI_Irecv(X, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &recv_request);
+            //! Store remaining elements of second array
+            while (z2 < k && z3<k)
+            {
+                dist[z3] = knn_temp.ndist[n*(z2) + i];
+                idx[z3++] = knn_temp.nidx[n*(z2++) + i];
+            }
 
-            MPI_Wait(&send_request,&stat);
-            MPI_Wait(&recv_request,&stat);
+            for(int z=0; z<k; z++)
+            {
+                knnres.ndist[n*z + i] = dist[z];
+                knnres.nidx[n*z + i] = idx[z];
+            }
         }
     }
 
     //! Free alocated memory
     free(Y);
-    free(X_cp);
+    free(X_send);
+    free(X_recv);
     free(dist);
     free(idx);
 
