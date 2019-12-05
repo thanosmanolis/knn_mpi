@@ -24,10 +24,11 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
     double *dist = (double *)malloc(k * sizeof(double));
     int    *idx  =    (int *)malloc(k * sizeof(int));
 
+    //! The first calculation of each process is done
     memcpy(Y, X, n*d*sizeof(double));
-
     knnres = kNN(X, Y, n, n, d, k);
 
+    //! Transformation of the indices according to each process
     int mul = id + p - 1;
     if(mul >= p)
         mul -= p;
@@ -36,27 +37,31 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
         for(int z=0; z<k; z++)
             knnres.nidx[n*z + i] = knnres.nidx[n*z + i] + mul*n;
 
-    int rcv;
+    //! Declare destination and receive id for each process
+    int rcv, dst;
+    int tag = 1;
+
     if(id == 0)
         rcv = p-1;
     else
         rcv = id-1;
 
-    int dst;
     if(id == p-1)
         dst = 0;
     else
         dst = id+1;
 
-    int tag = 1;
-
+    //! Each process will send, receive and update its
+    //! kNN result p-1 times (p = processes)
     for(int ip=0; ip<p; ip++)
     {
         if(ip > 0)
         {
+            //! Calculate kNN with the received buffer
             knnresult knn_temp;
             knn_temp = kNN(X, Y, n, n, d, k);
 
+            //! Transform the indices according to each process
             mul--;
             if(mul < 0)
                 mul = p-1;
@@ -65,11 +70,12 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
                 for(int z=0; z<k; z++)
                     knn_temp.nidx[n*z + i] = knn_temp.nidx[n*z + i] + mul*n;
 
+            //! Update the kNN result
             for(int i=0; i<n; i++)
             {
                 int z1 = 0, z2 = 0, z3 = 0;
 
-                // Traverse both arrays
+                //! Traverse both arrays
                 while (z1<k && z2<k && z3<k)
                 {
                     if (knnres.ndist[n*z1 + i] < knn_temp.ndist[n*z2 + i])
@@ -83,14 +89,14 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
                     }
                 }
 
-                // Store remaining elements of first array
+                //! Store remaining elements of first array
                 while (z1 < k && z3<k)
                 {
                     dist[z3] = knnres.ndist[n*(z1) + i];
                     idx[z3++] = knnres.nidx[n*(z1++) + i];
                 }
 
-                // Store remaining elements of second array
+                //! Store remaining elements of second array
                 while (z2 < k && z3<k)
                 {
                     dist[z3] = knn_temp.ndist[n*(z2) + i];
@@ -105,6 +111,8 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
             }
         }
 
+        //! Even processes first send, then receive, while
+        //! odd process first receive and then send
         if(ip < p-1)
         {
             if(id%2 == 0)

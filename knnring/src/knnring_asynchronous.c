@@ -1,7 +1,7 @@
 /*
-************************************************************
-*    k-nearest neighbors (k-NN) Parallel (Asynchronous)    *
-************************************************************
+***********************************************
+*    k-nearest neighbors (k-NN) Sequential    *
+***********************************************
 */
 #include "../inc/knnring.h"
 #include <mpi.h>
@@ -77,9 +77,11 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
             MPI_Irecv(X_recv, n*d, MPI_DOUBLE, rcv, tag, MPI_COMM_WORLD, &recv_request);
         }
 
+        //! Calculate kNN with the received buffer
         knnresult knn_temp;
         knn_temp = kNN(X, Y, n, n, d, k);
 
+        //! Transform the indices according to each process
         mul--;
         if(mul < 0)
             mul = p-1;
@@ -88,6 +90,7 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
             for(int z=0; z<k; z++)
                 knn_temp.nidx[n*z + i] = knn_temp.nidx[n*z + i] + mul*n;
 
+        //! Update the kNN result
         for(int i=0; i<n; i++)
         {
             int z1 = 0, z2 = 0, z3 = 0;

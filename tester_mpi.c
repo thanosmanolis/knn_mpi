@@ -56,16 +56,8 @@ int testMPI( int const n, int const d, int const k, int const ap )
 
     if (id == 0)
     {//! MASTER
-
-        //! ======================= START POINT =======================
-        start_excltime = MPI_Wtime();
-
         //! Initialize data to begin with
         double const * const corpusAll = ralloc( n*d*p );
-
-        //! ======================= END POINT =======================
-        end_excltime = MPI_Wtime();
-        excl_time += end_excltime - start_excltime;
 
         //! Break to subprocesses
         for (int ip = 0; ip < p; ip++)
@@ -205,7 +197,7 @@ int main(int argc, char *argv[])
     p_time = 0;
     excl_time = 0;
 
-    MPI_Init(&argc, &argv); // initialize MPI
+    MPI_Init(&argc, &argv);       // initialize MPI
 
     MPI_Comm_rank(MPI_COMM_WORLD, &id); // Task ID
     MPI_Comm_size(MPI_COMM_WORLD, &p); // # tasks
@@ -226,7 +218,7 @@ int main(int argc, char *argv[])
 
         printf("Tester validation: %s\n", STR_CORRECT_WRONG[isValidC]);
 
-        printf(YELLOW "===== n*p: %d, d: %d, k: %d =====\n" RESET_COLOR, n*p, d, k);
+        printf(YELLOW "===== CPU: %d, n: %d, d: %d, k: %d =====\n" RESET_COLOR, p, n, d, k);
         printf(RED "%f sec\n" RESET_COLOR, p_time);
 
         //! Uncomment the next lines to write output in a text file. By default the
