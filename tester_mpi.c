@@ -56,25 +56,25 @@ int testMPI( int const n, int const d, int const k, int const ap )
 
     if (id == 0)
     {//! MASTER
+        //! ======================= START POINT =======================
+        start_excltime = MPI_Wtime();
+
         //! Initialize data to begin with
         double const * const corpusAll = ralloc( n*d*p );
+
+        //! ======================= END POINT =======================
+        end_excltime = MPI_Wtime();
+        excl_time += end_excltime - start_excltime;
 
         //! Break to subprocesses
         for (int ip = 0; ip < p; ip++)
         {
-            //! ======================= START POINT =======================
-            start_excltime = MPI_Wtime();
-
             for (int i=0; i<n; i++)
                 for (int j=0; j<d; j++)
                     if (ap == COLMAJOR)
                         corpus_cm(i,j) = corpusAll_cm(i+ip*n,j);
                     else
                         corpus_rm(i,j) = corpusAll_rm(i+ip*n,j);
-
-            //! ======================= END POINT =======================
-            end_excltime = MPI_Wtime();
-            excl_time += end_excltime - start_excltime;
 
             //! Last chunk is mine
             if (ip == p-1)
