@@ -138,6 +138,35 @@ knnresult distrAllkNN(double * X, int n, int d, int k)
     free(dist);
     free(idx);
 
+    //! Global Minimum & Global Maximum
+    double local_max = -DBL_MAX;
+    double local_min = DBL_MAX;
+    double global_max, global_min;
+
+    for(int i=0; i<n ;i++)
+    {
+        if(knnres.ndist[n*(k-1) + i] > local_max)
+            local_max = knnres.ndist[n*(k-1) + i];
+
+        //! While the value is zero, check the next value, because
+        //! we are searching for the global minimum excluding zero
+        int counter = 0;
+        while(knnres.ndist[n*counter + i] == 0.0)
+            counter++;
+
+        if(knnres.ndist[n*counter + i] < local_min)
+            local_min = knnres.ndist[n*counter + i];
+    }
+
+    MPI_Reduce(&local_max, &global_max, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&local_min, &global_min, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+
+    if(id == 0)
+    {
+       printf("Global maximum distance: %f \n", global_max);
+       printf("Global minimum distance (apart from zero): %f \n", global_min);
+    }
+
     return knnres;
 }
 
