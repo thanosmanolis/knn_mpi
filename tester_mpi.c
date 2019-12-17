@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
 
         printf("Tester validation: %s\n", STR_CORRECT_WRONG[isValidC]);
 
-        printf(YELLOW "===== CPU: %d, n: %d, d: %d, k: %d =====\n" RESET_COLOR, p, n, d, k);
+        printf(YELLOW "===== CPU: %d, total_n: %d, d: %d, k: %d =====\n" RESET_COLOR, p, n*p, d, k);
         printf(RED "%f sec\n" RESET_COLOR, p_time);
 
         //! Uncomment the next lines to write output in a text file. By default the
