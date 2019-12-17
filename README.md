@@ -13,4 +13,4 @@ only one implementation
     2. Synchronous: ``mpirun -np <number_of_processes> ./test_synchronous arg1 arg2 arg3``
     3. Asynchronous: ``mpirun -np <number_of_processes> ./test_asynchronous arg1 arg2 arg3``
 
-The three arguments, are the n (data), d (dimensions), k (kNN-neighbors) values accordingly. If no arguments are included at the run command, then the executable will run with default values.
+The three arguments, are the n (number of data per-process), d (dimensions), k (kNN-neighbors) values accordingly. If no arguments are included at the run command, then the executable will run with default values.
